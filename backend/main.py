@@ -5,12 +5,12 @@ from typing import Optional, List
 import os
 import uuid
 
-from backend.config import UPLOADS_DIR
-from backend.database import init_database, add_conversation, get_conversations, get_documents, get_document_chunks, add_flashcard, get_flashcards
-from backend.services.ai_service import chat_with_ai, generate_summary, generate_flashcards, generate_quiz
-from backend.services.pdf_service import process_pdf, get_document_context
-from backend.services.ocr_service import ocr_from_base64
-from backend.services.study_service import track_study_session, get_learning_recommendations, record_pomodoro_session, review_flashcard
+from .config import UPLOADS_DIR
+from .database import init_database, add_conversation, get_conversations, get_documents, get_document_chunks, add_flashcard, get_flashcards
+from .services.ai_service import chat_with_ai, generate_summary, generate_flashcards, generate_quiz
+from .services.pdf_service import process_pdf, get_document_context
+from .services.ocr_service import ocr_from_base64
+from .services.study_service import track_study_session, get_learning_recommendations, record_pomodoro_session, review_flashcard
 
 app = FastAPI(
     title="Ruki Backend",

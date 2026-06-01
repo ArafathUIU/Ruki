@@ -1,4 +1,4 @@
 @echo off
 echo Starting Ruki Backend...
-cd backend
-python -m uvicorn main:app --reload --port 8000
+call backend\venv\Scripts\activate.bat
+python -m uvicorn backend.main:app --reload --port 8000

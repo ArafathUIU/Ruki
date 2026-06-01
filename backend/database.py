@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import os
-from backend.config import DATA_DIR
+from .config import DATA_DIR
 
 DB_PATH = os.path.join(DATA_DIR, "ruki.db")
 

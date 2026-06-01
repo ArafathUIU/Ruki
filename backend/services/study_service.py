@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from backend.database import (
+from ..database import (
     update_study_progress,
     get_weak_topics,
     add_flashcard,

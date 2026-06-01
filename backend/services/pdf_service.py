@@ -2,9 +2,9 @@ import os
 import re
 from typing import List, Dict, Any, Optional
 import pdfplumber
-from backend.config import UPLOADS_DIR
-from backend.database import add_document, get_document_chunks
-from backend.services.ai_service import find_relevant_chunks
+from ..config import UPLOADS_DIR
+from ..database import add_document, get_document_chunks
+from .ai_service import find_relevant_chunks
 
 
 def extract_text_from_pdf(file_path: str) -> Dict[str, Any]:
@@ -99,7 +99,7 @@ def get_document_context(query: str, document_id: Optional[int] = None) -> str:
             return find_relevant_chunks(query, chunks)
 
     # If no specific document, check all documents (simplified)
-    from backend.database import get_documents
+    from ..database import get_documents
     docs = get_documents()
     all_chunks = []
     for doc in docs:
