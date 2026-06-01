@@ -44,6 +44,30 @@ function createRukiWindow() {
   // Make click-through when idle, but allow dragging
   rukiWindow.setIgnoreMouseEvents(false)
 
+  // Constrain Ruki within screen bounds when moved
+  rukiWindow.on('move', () => {
+    if (!rukiWindow) return
+    const bounds = rukiWindow.getBounds()
+    const display = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y })
+    const workArea = display.workArea
+
+    let newX = bounds.x
+    let newY = bounds.y
+
+    if (newX < workArea.x) newX = workArea.x
+    if (newY < workArea.y) newY = workArea.y
+    if (newX + bounds.width > workArea.x + workArea.width) {
+      newX = workArea.x + workArea.width - bounds.width
+    }
+    if (newY + bounds.height > workArea.y + workArea.height) {
+      newY = workArea.y + workArea.height - bounds.height
+    }
+
+    if (newX !== bounds.x || newY !== bounds.y) {
+      rukiWindow.setPosition(newX, newY)
+    }
+  })
+
   rukiWindow.on('closed', () => {
     rukiWindow = null
   })
