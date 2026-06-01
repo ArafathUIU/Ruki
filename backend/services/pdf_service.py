@@ -1,6 +1,6 @@
 import os
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import pdfplumber
 from backend.config import UPLOADS_DIR
 from backend.database import add_document, get_document_chunks

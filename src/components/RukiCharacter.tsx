@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { RukiState, useRukiState } from '../hooks/useRukiState'
 import { usePomodoro } from '../hooks/usePomodoro'
 import PomodoroBubble from './PomodoroBubble'
+import rukiImage from '../../assets/ruki.png'
 
 const RUKI_WIDTH = 160
 const RUKI_HEIGHT = 220
@@ -164,7 +165,7 @@ export default function RukiCharacter() {
         style={{ width: RUKI_WIDTH, height: RUKI_HEIGHT }}
       >
         <img
-          src="./assets/ruki.png"
+          src={rukiImage}
           alt="Ruki"
           className="w-full h-full object-contain drop-shadow-lg"
           draggable={false}
