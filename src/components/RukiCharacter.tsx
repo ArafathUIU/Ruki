@@ -361,8 +361,10 @@ export default function RukiCharacter() {
     if (!isDragging) return
     const newX = e.screenX - dragOffset.current.x
     const newY = e.screenY - dragOffset.current.y
-    windowPos.current = { x: newX, y: newY }
-    if (window.electronAPI) window.electronAPI.setRukiPosition(newX, newY)
+    if (Number.isFinite(newX) && Number.isFinite(newY)) {
+      windowPos.current = { x: newX, y: newY }
+      if (window.electronAPI) window.electronAPI.setRukiPosition(newX, newY)
+    }
   }, [isDragging])
 
   const handleMouseUp = useCallback(() => setIsDragging(false), [])
