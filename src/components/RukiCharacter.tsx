@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { RukiState, useRukiState } from '../hooks/useRukiState'
 import { usePomodoro } from '../hooks/usePomodoro'
 import PomodoroBubble from './PomodoroBubble'
-import rukiImage from '../../assets/ruki.png'
+import RukiCartoon from './RukiCartoon'
+import type { Emotion } from './RukiCartoon'
 
 const RUKI_WIDTH = 160
 const RUKI_HEIGHT = 220
@@ -15,26 +16,13 @@ function distance(a: { x: number; y: number }, b: { x: number; y: number }): num
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
 }
 
-const stateAnimationClass: Record<string, string> = {
-  idle: 'ruki-idle',
-  bored: 'ruki-bored',
-  walk: 'ruki-walk',
-  run: 'ruki-run',
-  wave: 'ruki-wave',
-  dance: 'ruki-dance',
-  follow_cursor: 'ruki-walk',
-  sleepy: 'ruki-sleepy',
-  celebrating: 'ruki-celebrate',
-}
-
-const BORED_THOUGHTS = ['...', 'hmm', '💤', 'zzz', '🥱']
+const BORED_THOUGHTS = ['...', 'hmm', '💤']
 
 interface Particle {
   id: number
   type: 'sparkle' | 'dust' | 'zzz'
   x: number
   y: number
-  style: React.CSSProperties
   delay: number
 }
 
@@ -47,19 +35,146 @@ export default function RukiCharacter() {
     breakDuration: 5 * 60,
   })
 
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const dragOffset = useRef({ x: 0, y: 0 })
+  // Animation state
+  const [rightArm, setRightArm] = useState(0)
+  const [leftArm, setLeftArm] = useState(0)
+  const [bodyTilt, setBodyTilt] = useState(0)
+  const [bodyBob, setBodyBob] = useState(0)
+  const [eyeScale, setEyeScale] = useState(1)
+  const [mouth, setMouth] = useState<'smile' | 'neutral' | 'open' | 'sleep' | 'yawn'>('smile')
+  const [emotion, setEmotion] = useState<Emotion>('happy')
+
   const cursorPos = useRef({ x: 0, y: 0 })
   const windowPos = useRef({ x: 0, y: 0 })
   const followAnimId = useRef<number>(0)
+  const animFrameId = useRef<number>(0)
+  const animTimeRef = useRef(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const dragOffset = useRef({ x: 0, y: 0 })
   const [isNearCursor, setIsNearCursor] = useState(false)
-  const [followSpeedClass, setFollowSpeedClass] = useState('ruki-walk')
+  const [followSpeedClass, setFollowSpeedClass] = useState('')
   const [particles, setParticles] = useState<Particle[]>([])
   const [boredThought, setBoredThought] = useState('...')
-  const prevState = useRef<RukiState>('idle')
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  // Get initial window position
+  // --- Animation frame loop ---
+  useEffect(() => {
+    const animate = (time: number) => {
+      const dt = animTimeRef.current ? (time - animTimeRef.current) / 1000 : 0.016
+      animTimeRef.current = time
+
+      const t = time / 1000
+
+      switch (state) {
+        case 'idle':
+          setRightArm(Math.sin(t * 2) * 5)
+          setLeftArm(Math.sin(t * 2 + Math.PI) * 3)
+          setBodyBob(Math.sin(t * 3) * 2)
+          setBodyTilt(Math.sin(t * 1.5) * 1)
+          setEyeScale(1)
+          setMouth('smile')
+          setEmotion('happy')
+          break
+
+        case 'bored':
+          setRightArm(Math.sin(t * 1.2) * 3)
+          setLeftArm(Math.sin(t * 1.2) * 2)
+          setBodyBob(Math.sin(t * 2) * 1.5)
+          setBodyTilt(Math.sin(t * 0.7) * 3)
+          setEyeScale(0.85)
+          setMouth(Math.sin(t * 0.3) > 0.5 ? 'yawn' : 'neutral')
+          setEmotion('bored')
+          break
+
+        case 'walk':
+          setRightArm(Math.sin(t * 10) * 25)
+          setLeftArm(Math.sin(t * 10 + Math.PI) * 25)
+          setBodyBob(Math.sin(t * 20) * 5)
+          setBodyTilt(Math.sin(t * 5) * 2)
+          setEyeScale(1)
+          setMouth('smile')
+          setEmotion('happy')
+          break
+
+        case 'run':
+          setRightArm(Math.sin(t * 16) * 35)
+          setLeftArm(Math.sin(t * 16 + Math.PI) * 35)
+          setBodyBob(Math.sin(t * 28) * 7)
+          setBodyTilt(Math.sin(t * 8) * 3)
+          setEyeScale(1)
+          setMouth('open')
+          setEmotion('excited')
+          break
+
+        case 'wave':
+          setRightArm(-20 + Math.sin(t * 6) * 25)
+          setLeftArm(40 + Math.sin(t * 2) * 10)
+          setBodyBob(Math.sin(t * 3) * 3)
+          setBodyTilt(Math.sin(t * 4) * 2)
+          setEyeScale(1)
+          setMouth('open')
+          setEmotion('excited')
+          break
+
+        case 'dance':
+          setRightArm(Math.sin(t * 8) * 40 + 20)
+          setLeftArm(Math.sin(t * 8 + Math.PI) * 40 + 20)
+          setBodyBob(Math.sin(t * 12) * 8)
+          setBodyTilt(Math.sin(t * 6) * 5)
+          setEyeScale(1)
+          setMouth('open')
+          setEmotion('excited')
+          break
+
+        case 'follow_cursor':
+          if (isNearCursor) {
+            setRightArm(Math.sin(t * 4) * 3)
+            setLeftArm(Math.sin(t * 4) * 2)
+            setBodyBob(Math.sin(t * 3) * 1)
+            setBodyTilt(0)
+            setMouth('smile')
+          } else {
+            const speed = followSpeedClass === 'ruki-run' ? 16 : 10
+            setRightArm(Math.sin(t * speed) * 28)
+            setLeftArm(Math.sin(t * speed + Math.PI) * 28)
+            setBodyBob(Math.sin(t * speed * 2) * 5)
+            setBodyTilt(Math.sin(t * speed / 2) * 2)
+            setEyeScale(1)
+            setMouth('smile')
+          }
+          setEmotion('happy')
+          setEyeScale(1)
+          break
+
+        case 'sleepy':
+          setRightArm(-30 + Math.sin(t * 0.5) * 3)
+          setLeftArm(-20 + Math.sin(t * 0.5) * 2)
+          setBodyBob(Math.sin(t * 1) * 1)
+          setBodyTilt(12 + Math.sin(t * 1.5) * 3)
+          setEyeScale(0.4 + Math.sin(t * 0.4) * 0.15)
+          setMouth('sleep')
+          setEmotion('sleepy')
+          break
+
+        case 'celebrating':
+          setRightArm(-50 + Math.sin(t * 8) * 15)
+          setLeftArm(-50 + Math.sin(t * 8 + Math.PI) * 15)
+          setBodyBob(Math.sin(t * 10) * 12)
+          setBodyTilt(Math.sin(t * 6) * 4)
+          setEyeScale(1)
+          setMouth('open')
+          setEmotion('excited')
+          break
+      }
+
+      animFrameId.current = requestAnimationFrame(animate)
+    }
+
+    animFrameId.current = requestAnimationFrame(animate)
+    return () => { if (animFrameId.current) cancelAnimationFrame(animFrameId.current) }
+  }, [state, isNearCursor, followSpeedClass])
+
+  // --- Get initial window position ---
   useEffect(() => {
     const fetchBounds = async () => {
       if (window.electronAPI) {
@@ -70,21 +185,21 @@ export default function RukiCharacter() {
     fetchBounds()
   }, [])
 
+  // --- Blink timer ---
+  useEffect(() => {
+    const blink = () => {
+      setEyeScale(0.1)
+      setTimeout(() => setEyeScale(1), 100)
+    }
+    const interval = setInterval(blink, 3000 + Math.random() * 4000)
+    return () => clearInterval(interval)
+  }, [])
+
   // --- Particle system ---
-  const spawnParticles = useCallback((type: 'sparkle' | 'dust' | 'zzz', count: number, x: number, y: number) => {
+  const spawnParticles = useCallback((type: 'sparkle' | 'dust' | 'zzz', count: number) => {
     const newParticles: Particle[] = []
     for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count
-      const radius = 20 + Math.random() * 30
-      const style: React.CSSProperties = {
-        '--tx': `${Math.cos(angle) * radius}px`,
-        '--ty': `${Math.sin(angle) * radius - 30}px`,
-        '--tx2': `${Math.cos(angle) * radius * 2}px`,
-        '--ty2': `${Math.sin(angle) * radius * 2 - 60}px`,
-        left: `${x}px`,
-        top: `${y}px`,
-      } as React.CSSProperties
-      newParticles.push({ id: particleId++, type, x, y, style, delay: i * 0.15 })
+      newParticles.push({ id: particleId++, type, x: RUKI_WIDTH / 2, y: RUKI_HEIGHT - 20, delay: i * 0.1 })
     }
     setParticles((prev) => [...prev.slice(-30), ...newParticles])
     setTimeout(() => {
@@ -92,22 +207,18 @@ export default function RukiCharacter() {
     }, 2000)
   }, [])
 
-  // Spawn dust when walking/running
+  // Dust when walking/running
   useEffect(() => {
     if (state === 'walk' || state === 'run' || (state === 'follow_cursor' && !isNearCursor)) {
-      const interval = setInterval(() => {
-        spawnParticles('dust', 2, RUKI_WIDTH / 2, RUKI_HEIGHT - 10)
-      }, 300)
+      const interval = setInterval(() => spawnParticles('dust', 2), 250)
       return () => clearInterval(interval)
     }
   }, [state, isNearCursor, spawnParticles])
 
-  // Spawn sparkles when waving
+  // Sparkles when waving/dancing
   useEffect(() => {
-    if (state === 'wave') {
-      const interval = setInterval(() => {
-        spawnParticles('sparkle', 3, RUKI_WIDTH / 2 + 30, RUKI_HEIGHT / 3)
-      }, 600)
+    if (state === 'wave' || state === 'dance' || state === 'celebrating') {
+      const interval = setInterval(() => spawnParticles('sparkle', 3), 400)
       return () => clearInterval(interval)
     }
   }, [state, spawnParticles])
@@ -117,19 +228,18 @@ export default function RukiCharacter() {
     if (state === 'bored') {
       const interval = setInterval(() => {
         setBoredThought(BORED_THOUGHTS[Math.floor(Math.random() * BORED_THOUGHTS.length)])
-      }, 3000)
+      }, 3500)
       return () => clearInterval(interval)
     }
   }, [state])
 
-  // --- Cursor proximity (global tracking) ---
+  // --- Cursor proximity ---
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       cursorPos.current = { x: e.clientX, y: e.clientY }
     }
     window.addEventListener('mousemove', handleMouseMove)
 
-    // Proximity checker - runs even when not following
     const proximityCheck = setInterval(async () => {
       if (!isAutoMode || !window.electronAPI) return
       if (isDragging || state === 'follow_cursor' || state === 'dance' || state === 'celebrating') return
@@ -137,20 +247,15 @@ export default function RukiCharacter() {
       const bounds = await window.electronAPI.getRukiBounds()
       if (!bounds) return
 
-      const rukiCenter = {
-        x: bounds.x + bounds.width / 2,
-        y: bounds.y + bounds.height / 2,
-      }
+      const rukiCenter = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
       const dist = distance(cursorPos.current, rukiCenter)
 
       if (dist < PROXIMITY_FOLLOW) {
-        // Close — start following
         if (state !== 'follow_cursor') setState('follow_cursor')
       } else if (dist < PROXIMITY_WAVE) {
-        // Near — wake up and wave
         if (state === 'sleepy' || state === 'bored') {
           setState('wave')
-          spawnParticles('sparkle', 5, RUKI_WIDTH / 2, RUKI_HEIGHT / 3)
+          spawnParticles('sparkle', 5)
         }
       }
     }, 500)
@@ -161,7 +266,7 @@ export default function RukiCharacter() {
     }
   }, [isAutoMode, isDragging, state, setState, spawnParticles])
 
-  // --- Cursor following (moves the Electron window) ---
+  // --- Cursor following (moves Electron window) ---
   useEffect(() => {
     if (state !== 'follow_cursor') {
       if (followAnimId.current) cancelAnimationFrame(followAnimId.current)
@@ -190,13 +295,13 @@ export default function RukiCharacter() {
 
       if (dist < STOP_THRESHOLD) {
         setIsNearCursor(true)
-        setFollowSpeedClass('ruki-idle')
+        setFollowSpeedClass('stopped')
       } else if (dist < PROXIMITY_WAVE) {
         setIsNearCursor(false)
-        setFollowSpeedClass('ruki-walk')
+        setFollowSpeedClass('walk')
       } else {
         setIsNearCursor(false)
-        setFollowSpeedClass('ruki-run')
+        setFollowSpeedClass('run')
       }
 
       if (dist > STOP_THRESHOLD) {
@@ -204,29 +309,20 @@ export default function RukiCharacter() {
         const nx = currentPos.x + (targetX - currentPos.x) * (speed / dist)
         const ny = currentPos.y + (targetY - currentPos.y) * (speed / dist)
         await window.electronAPI.setRukiPosition(nx, ny)
-      } else {
-        // Cursor near but not moving → exit follow after a while
-        // We keep following for now, just stopped
       }
 
       followAnimId.current = requestAnimationFrame(follow)
     }
 
     followAnimId.current = requestAnimationFrame(follow)
-
-    return () => {
-      if (followAnimId.current) cancelAnimationFrame(followAnimId.current)
-    }
+    return () => { if (followAnimId.current) cancelAnimationFrame(followAnimId.current) }
   }, [state])
 
   // --- Dragging ---
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (state === 'follow_cursor') return
     setIsDragging(true)
-    dragOffset.current = {
-      x: e.clientX - windowPos.current.x,
-      y: e.clientY - windowPos.current.y,
-    }
+    dragOffset.current = { x: e.clientX - windowPos.current.x, y: e.clientY - windowPos.current.y }
   }, [state])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -246,14 +342,12 @@ export default function RukiCharacter() {
     const currentIndex = states.indexOf(state)
     const next = states[(currentIndex + 1) % states.length]
     setState(next)
-    if (next === 'wave') spawnParticles('sparkle', 6, RUKI_WIDTH / 2, RUKI_HEIGHT / 3)
-    if (next === 'dance') spawnParticles('sparkle', 10, RUKI_WIDTH / 2, RUKI_HEIGHT / 2)
-  }, [state, setState, spawnParticles])
+  }, [state, setState])
 
   const handleClick = useCallback(() => {
     if (state !== 'follow_cursor' && state !== 'wave' && state !== 'dance' && state !== 'celebrating') {
       setState('wave')
-      spawnParticles('sparkle', 6, RUKI_WIDTH / 2 + 30, RUKI_HEIGHT / 3)
+      spawnParticles('sparkle', 6)
     }
   }, [state, setState, spawnParticles])
 
@@ -261,7 +355,7 @@ export default function RukiCharacter() {
     if (window.electronAPI) window.electronAPI.openChat()
   }, [])
 
-  // Listen for pomodoro start from tray
+  // Pomodoro tray
   useEffect(() => {
     if (window.electronAPI) {
       window.electronAPI.onStartPomodoro(() => startTimer())
@@ -277,19 +371,6 @@ export default function RukiCharacter() {
     }
   }, [state, setState])
 
-  // Track state changes for transitions
-  useEffect(() => { prevState.current = state }, [state])
-
-  // Fix: wake from sleepy on any interaction
-  useEffect(() => {
-    if (state === 'sleepy' && prevState.current !== 'sleepy') {
-      // Just entered sleepy
-    }
-  }, [state])
-
-  // Determine animation class
-  const animClass = state === 'follow_cursor' ? followSpeedClass : stateAnimationClass[state] || 'ruki-idle'
-
   return (
     <div
       ref={containerRef}
@@ -304,64 +385,65 @@ export default function RukiCharacter() {
       onDoubleClick={handleDoubleClick}
     >
       {/* Pomodoro Bubble */}
-      {isActive && (
-        <PomodoroBubble timeRemaining={timeRemaining} formattedTime={formatTime(timeRemaining)} />
-      )}
+      {isActive && <PomodoroBubble timeRemaining={timeRemaining} formattedTime={formatTime(timeRemaining)} />}
 
       {/* Particles */}
       {particles.map((p) => (
-        <div key={p.id} className={`${p.type}-particle`} style={{ ...p.style, animationDelay: `${p.delay}s` }} />
+        <div
+          key={p.id}
+          className={`${p.type}-particle`}
+          style={{
+            '--tx': `${(Math.random() - 0.5) * 50}px`,
+            '--ty': `${-20 - Math.random() * 30}px`,
+            '--tx2': `${(Math.random() - 0.5) * 80}px`,
+            '--ty2': `${-40 - Math.random() * 50}px`,
+            left: p.x,
+            top: p.y,
+            animationDelay: `${p.delay}s`,
+          } as React.CSSProperties}
+        />
       ))}
 
       {/* Bored thought bubble */}
       {state === 'bored' && !isActive && (
-        <div
-          className="thought-bubble absolute -top-10 left-1/2 -translate-x-1/2 z-40"
-          style={{ animationDelay: `${Math.random() * 2}s` }}
-        >
+        <div className="thought-bubble absolute -top-10 left-1/2 -translate-x-1/2 z-40">
           {boredThought}
         </div>
       )}
 
-      {/* Cursor follow indicator */}
+      {/* Follow indicator */}
       {state === 'follow_cursor' && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
           <span className="text-[10px] text-white/70 bg-black/30 rounded-full px-2 py-0.5">
-            {isNearCursor ? 'Here!' : followSpeedClass === 'ruki-run' ? 'Coming!' : 'Following...'}
+            {isNearCursor ? 'Hi! 😊' : followSpeedClass === 'run' ? 'Coming!' : 'Following...'}
           </span>
         </div>
       )}
 
-      {/* Ruki Character */}
-      <div
-        className={`absolute bottom-4 left-1/2 -translate-x-1/2 ${animClass}`}
-        style={{ width: RUKI_WIDTH, height: RUKI_HEIGHT, willChange: 'transform' }}
-      >
-        <img
-          src={rukiImage}
-          alt="Ruki"
-          className="w-full h-full object-contain drop-shadow-lg"
-          draggable={false}
+      {/* Ruki Cartoon Character */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2" style={{ width: RUKI_WIDTH, height: RUKI_HEIGHT }}>
+        <RukiCartoon
+          emotion={emotion}
+          rightArmRotate={rightArm}
+          leftArmRotate={leftArm}
+          bodyTilt={bodyTilt}
+          bodyBob={bodyBob}
+          eyeScale={eyeScale}
+          mouthType={mouth}
+          className="w-full h-full"
         />
 
-        {/* Sleep Zzz particles and effects */}
+        {/* Sleep Zzz */}
         {state === 'sleepy' && (
-          <>
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-              <span className="inline-block text-blue-300 text-lg animate-float" style={{ animationDelay: '0s' }}>Z</span>
-              <span className="inline-block text-blue-300 text-sm animate-float ml-2" style={{ animationDelay: '0.6s' }}>z</span>
-              <span className="inline-block text-blue-300 text-xs animate-float ml-2" style={{ animationDelay: '1.2s' }}>z</span>
-            </div>
-            {/* Sleepy drool/cloud */}
-            <div className="absolute top-4 -right-2 opacity-30">
-              <div className="w-4 h-4 bg-blue-200 rounded-full animate-float" style={{ animationDelay: '0.3s' }} />
-              <div className="w-3 h-3 bg-blue-200 rounded-full -ml-2 -mt-1 animate-float" style={{ animationDelay: '0.8s' }} />
-            </div>
-          </>
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+            <span className="inline-block text-blue-300 text-lg opacity-80" style={{ animation: 'zzzFloat 2.5s ease-out infinite' }}>Z</span>
+            <span className="inline-block text-blue-300 text-sm opacity-60 ml-2" style={{ animation: 'zzzFloat 2.5s ease-out infinite', animationDelay: '0.6s' }}>z</span>
+            <span className="inline-block text-blue-300 text-xs opacity-40 ml-2" style={{ animation: 'zzzFloat 2.5s ease-out infinite', animationDelay: '1.2s' }}>z</span>
+          </div>
         )}
       </div>
 
-      {/* State label */}
+      {/* Hint */}
       {!isActive && state !== 'follow_cursor' && (
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-white/40 text-[9px] whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
           Click to wave · Double-click to chat · Right-click to cycle
