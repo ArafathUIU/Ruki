@@ -55,7 +55,31 @@ export default function RukiCharacter() {
   const [followSpeedClass, setFollowSpeedClass] = useState('')
   const [particles, setParticles] = useState<Particle[]>([])
   const [boredThought, setBoredThought] = useState('...')
+  const [thoughtBubble, setThoughtBubble] = useState<{ text: string; visible: boolean; key: number }>({ text: '', visible: false, key: 0 })
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // --- Show thought bubble on state changes ---
+  useEffect(() => {
+    const messages: Record<string, string> = {
+      idle: '',
+      bored: boredThought,
+      walk: '',
+      run: '',
+      wave: 'Hello! 👋',
+      dance: 'La la la~ 🎵',
+      follow_cursor: isNearCursor ? 'Oh hi!' : 'Coming! 🏃‍♀️',
+      sleepy: 'Zzz...',
+      celebrating: 'Yay! 🎉',
+    }
+    const text = messages[state] || ''
+    if (text) {
+      setThoughtBubble({ text, visible: true, key: Date.now() })
+    } else if (state === 'bored') {
+      // Bored updates continuously from the interval
+    } else {
+      setThoughtBubble((prev) => ({ ...prev, visible: false }))
+    }
+  }, [state, isNearCursor])
 
   // --- Animation frame loop ---
   useEffect(() => {
@@ -227,16 +251,22 @@ export default function RukiCharacter() {
   useEffect(() => {
     if (state === 'bored') {
       const interval = setInterval(() => {
-        setBoredThought(BORED_THOUGHTS[Math.floor(Math.random() * BORED_THOUGHTS.length)])
+        const text = BORED_THOUGHTS[Math.floor(Math.random() * BORED_THOUGHTS.length)]
+        setBoredThought(text)
+        setThoughtBubble({ text, visible: true, key: Date.now() })
       }, 3500)
-      return () => clearInterval(interval)
+      return () => {
+        clearInterval(interval)
+        setThoughtBubble((prev) => ({ ...prev, visible: false }))
+      }
     }
   }, [state])
 
-  // --- Cursor proximity ---
+  // --- Cursor proximity (global tracking) ---
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      cursorPos.current = { x: e.clientX, y: e.clientY }
+      // screenX/Y = absolute screen coordinates (matches getRukiBounds)
+      cursorPos.current = { x: e.screenX, y: e.screenY }
     }
     window.addEventListener('mousemove', handleMouseMove)
 
@@ -258,7 +288,7 @@ export default function RukiCharacter() {
           spawnParticles('sparkle', 5)
         }
       }
-    }, 500)
+    }, 300)
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
@@ -322,13 +352,13 @@ export default function RukiCharacter() {
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (state === 'follow_cursor') return
     setIsDragging(true)
-    dragOffset.current = { x: e.clientX - windowPos.current.x, y: e.clientY - windowPos.current.y }
+    dragOffset.current = { x: e.screenX - windowPos.current.x, y: e.screenY - windowPos.current.y }
   }, [state])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return
-    const newX = e.clientX - dragOffset.current.x
-    const newY = e.clientY - dragOffset.current.y
+    const newX = e.screenX - dragOffset.current.x
+    const newY = e.screenY - dragOffset.current.y
     windowPos.current = { x: newX, y: newY }
     if (window.electronAPI) window.electronAPI.setRukiPosition(newX, newY)
   }, [isDragging])
@@ -404,10 +434,10 @@ export default function RukiCharacter() {
         />
       ))}
 
-      {/* Bored thought bubble */}
-      {state === 'bored' && !isActive && (
-        <div className="thought-bubble absolute -top-10 left-1/2 -translate-x-1/2 z-40">
-          {boredThought}
+      {/* Thought Bubble */}
+      {thoughtBubble.visible && thoughtBubble.text && (
+        <div key={thoughtBubble.key} className="thought-bubble absolute -top-16 left-1/2 -translate-x-1/2 z-50">
+          {thoughtBubble.text}
         </div>
       )}
 
