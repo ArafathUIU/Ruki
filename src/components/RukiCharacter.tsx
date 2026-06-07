@@ -338,7 +338,9 @@ export default function RukiCharacter() {
         const speed = Math.min(dist * FOLLOW_SPEED, 15)
         const nx = currentPos.x + (targetX - currentPos.x) * (speed / dist)
         const ny = currentPos.y + (targetY - currentPos.y) * (speed / dist)
-        await window.electronAPI.setRukiPosition(nx, ny)
+        if (Number.isFinite(nx) && Number.isFinite(ny)) {
+          await window.electronAPI.setRukiPosition(nx, ny)
+        }
       }
 
       followAnimId.current = requestAnimationFrame(follow)

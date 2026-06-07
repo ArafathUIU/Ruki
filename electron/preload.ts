@@ -17,7 +17,12 @@ export interface ElectronAPI {
 
 const api: ElectronAPI = {
   getRukiBounds: () => ipcRenderer.invoke('get-ruki-bounds'),
-  setRukiPosition: (x: number, y: number) => ipcRenderer.invoke('set-ruki-position', x, y),
+  setRukiPosition: (x: number, y: number) => {
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      return ipcRenderer.invoke('set-ruki-position', x, y)
+    }
+    return Promise.resolve()
+  },
   openChat: () => ipcRenderer.invoke('open-chat'),
   closeChat: () => ipcRenderer.invoke('close-chat'),
   startRegionSelect: () => ipcRenderer.invoke('start-region-select'),

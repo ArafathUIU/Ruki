@@ -244,7 +244,7 @@ ipcMain.handle('get-ruki-bounds', () => {
 })
 
 ipcMain.handle('set-ruki-position', (_event, x: number, y: number) => {
-  if (rukiWindow) {
+  if (rukiWindow && Number.isFinite(x) && Number.isFinite(y)) {
     rukiWindow.setPosition(Math.round(x), Math.round(y))
   }
 })
