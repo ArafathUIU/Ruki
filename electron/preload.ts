@@ -32,6 +32,9 @@ const api: ElectronAPI = {
   onStartPomodoro: (callback: () => void) => {
     ipcRenderer.on('start-pomodoro', callback)
   },
+  onStartFollow: (callback: () => void) => {
+    ipcRenderer.on('start-follow', callback)
+  },
   onStartRegionSelect: (callback: () => void) => {
     ipcRenderer.on('start-region-select', callback)
   },

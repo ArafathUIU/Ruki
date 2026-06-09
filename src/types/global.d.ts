@@ -8,6 +8,7 @@ interface ElectronAPI {
   captureRegion: (region: { x: number; y: number; width: number; height: number }) => Promise<string | null>
   sendToChat: (message: string) => void
   onStartPomodoro: (callback: () => void) => void
+  onStartFollow: (callback: () => void) => void
   onStartRegionSelect: (callback: () => void) => void
   onNewMessage: (callback: (message: string) => void) => void
   removeAllListeners: (channel: string) => void

@@ -5,8 +5,8 @@ import PomodoroBubble from './PomodoroBubble'
 import RukiCartoon from './RukiCartoon'
 import type { Emotion } from './RukiCartoon'
 
-const RUKI_WIDTH = 160
-const RUKI_HEIGHT = 220
+const RUKI_WIDTH = 180
+const RUKI_HEIGHT = 260
 const FOLLOW_SPEED = 0.06
 const STOP_THRESHOLD = 25
 const PROXIMITY_FOLLOW = 120
@@ -56,6 +56,7 @@ export default function RukiCharacter() {
   const [particles, setParticles] = useState<Particle[]>([])
   const [boredThought, setBoredThought] = useState('...')
   const [thoughtBubble, setThoughtBubble] = useState<{ text: string; visible: boolean; key: number }>({ text: '', visible: false, key: 0 })
+  const [showToolbar, setShowToolbar] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // --- Show thought bubble on state changes ---
@@ -389,6 +390,32 @@ export default function RukiCharacter() {
     if (window.electronAPI) window.electronAPI.openChat()
   }, [])
 
+  // Quick action: start pomodoro
+  const handleStartPomodoro = useCallback(() => {
+    setState('celebrating')
+    startTimer()
+    spawnParticles('sparkle', 8)
+    setThoughtBubble({ text: 'Focus time! 🎯', visible: true, key: Date.now() })
+    setTimeout(() => setState('idle'), 3000)
+  }, [setState, startTimer, spawnParticles])
+
+  // Quick action: toggle follow
+  const handleToggleFollow = useCallback(() => {
+    if (state === 'follow_cursor') {
+      setState('idle')
+      setThoughtBubble({ text: 'Okay! 😊', visible: true, key: Date.now() })
+    } else {
+      setState('follow_cursor')
+    }
+  }, [state, setState])
+
+  // Quick action: talk/chat
+  const handleTalk = useCallback(() => {
+    if (window.electronAPI) window.electronAPI.openChat()
+    setState('wave')
+    spawnParticles('sparkle', 4)
+  }, [setState, spawnParticles])
+
   // Pomodoro tray
   useEffect(() => {
     if (window.electronAPI) {
@@ -396,6 +423,14 @@ export default function RukiCharacter() {
       return () => { window.electronAPI.removeAllListeners('start-pomodoro') }
     }
   }, [startTimer])
+
+  // Follow from tray
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.onStartFollow(() => setState('follow_cursor'))
+      return () => { window.electronAPI.removeAllListeners('start-follow') }
+    }
+  }, [setState])
 
   // Auto-return after wave/dance/celebrate
   useEffect(() => {
@@ -413,13 +448,52 @@ export default function RukiCharacter() {
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseLeave={(e) => { handleMouseUp(); setShowToolbar(false) }}
+      onMouseEnter={() => setShowToolbar(true)}
       onContextMenu={handleContextMenu}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
     >
       {/* Pomodoro Bubble */}
       {isActive && <PomodoroBubble timeRemaining={timeRemaining} formattedTime={formatTime(timeRemaining)} />}
+
+      {/* Quick Action Toolbar - shows on hover */}
+      <div
+        className={`absolute top-0 left-1/2 -translate-x-1/2 flex gap-1 transition-all duration-300 z-50 ${
+          showToolbar ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+        onMouseEnter={() => setShowToolbar(true)}
+      >
+        <button
+          onClick={(e) => { e.stopPropagation(); handleStartPomodoro() }}
+          disabled={isActive}
+          className="bg-white/15 hover:bg-ruki-teal/40 backdrop-blur text-white text-xs rounded-full px-3 py-1 transition-all hover:scale-110 disabled:opacity-40"
+          title="Start Focus Session"
+        >
+          🎯 Focus
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleTalk() }}
+          className="bg-white/15 hover:bg-ruki-teal/40 backdrop-blur text-white text-xs rounded-full px-3 py-1 transition-all hover:scale-110"
+          title="Open Chat"
+        >
+          💬 Chat
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleToggleFollow() }}
+          className="bg-white/15 hover:bg-ruki-teal/40 backdrop-blur text-white text-xs rounded-full px-3 py-1 transition-all hover:scale-110"
+          title={state === 'follow_cursor' ? 'Stop Following' : 'Follow Cursor'}
+        >
+          {state === 'follow_cursor' ? '🛑 Stop' : '👣 Follow'}
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); setState('dance'); spawnParticles('sparkle', 10) }}
+          className="bg-white/15 hover:bg-ruki-teal/40 backdrop-blur text-white text-xs rounded-full px-3 py-1 transition-all hover:scale-110"
+          title="Dance"
+        >
+          💃 Dance
+        </button>
+      </div>
 
       {/* Particles */}
       {particles.map((p) => (

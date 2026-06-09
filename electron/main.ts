@@ -6,8 +6,8 @@ let chatWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let overlayWindow: BrowserWindow | null = null
 
-const RUKI_WIDTH = 200
-const RUKI_HEIGHT = 280
+const RUKI_WIDTH = 220
+const RUKI_HEIGHT = 300
 
 function createRukiWindow() {
   const primaryDisplay = screen.getPrimaryDisplay()
@@ -170,6 +170,21 @@ function createTray() {
       label: 'Start Focus Session',
       click: () => {
         rukiWindow?.webContents.send('start-pomodoro')
+      },
+    },
+    {
+      label: 'Follow Cursor',
+      click: () => {
+        rukiWindow?.webContents.send('start-follow')
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Explain Screen (Ctrl+Shift+R)',
+      click: () => {
+        createOverlayWindow()
+        overlayWindow?.show()
+        overlayWindow?.webContents.send('start-region-select')
       },
     },
     { type: 'separator' },
